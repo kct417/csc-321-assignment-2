@@ -1,6 +1,5 @@
 import os
 from Crypto.Cipher import AES
-from numpy import block
 
 
 def read_bmp_header(filename):
@@ -65,7 +64,7 @@ def ecb_decrypt(key: bytes, ciphertext: bytes) -> bytes:
     block = []
 
     while ciphertext:
-        block.append(cipher.decrypt(ciphertext[0:16]))
+        block.append(cipher.decrypt(ciphertext[:16]))
         ciphertext = ciphertext[16:]
 
     return remove_padding(b"".join(block))
@@ -77,14 +76,14 @@ def cbc_encrypt(key: bytes, plaintext: bytes, iv: bytes) -> bytes:
     block = []
 
     iv_bits = int.from_bytes(iv, "big")
-    plaintext_bits = int.from_bytes(plaintext[0:16], "big")
+    plaintext_bits = int.from_bytes(plaintext[:16], "big")
 
     plaintext = plaintext[16:]
     xor = iv_bits ^ plaintext_bits
 
     while plaintext:
         block.append(cipher.encrypt(xor.to_bytes(16, "big")))
-        xor = int.from_bytes(block[-1], "big") ^ int.from_bytes(plaintext[0:16], "big")
+        xor = int.from_bytes(block[-1], "big") ^ int.from_bytes(plaintext[:16], "big")
         plaintext = plaintext[16:]
 
     return b"".join(block)
