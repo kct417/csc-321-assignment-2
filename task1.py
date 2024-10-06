@@ -7,100 +7,92 @@ def read_bmp_header(filename):
         return f.read(54), f.read()
 
 
-def encrypt_image(image_filename, mode, key=None, iv=None):
+def encrypt_image(image_filename: str, mode: str, key: bytes, iv=None):
+    if mode not in ["ecb", "cbc"]:
+        raise ValueError("Invalid mode")
     header, data = read_bmp_header(image_filename)
 
-    if key is None:
-        key = generate_bytes(16)
-    if iv is None:
-        iv = generate_bytes(16)
+    if iv is None and mode == "cbc":
+        iv = random_bytes(len=16)
 
-    match mode:
-        case "ecb":
-            data = ecb_encrypt(key, data)
+    data = ecb_encrypt(key, data) if mode == "ecb" else cbc_encrypt(key, data, iv)
 
-        case "cbc":
-            data = cbc_encrypt(key, data, iv)
-
-    with open("encrypted_" + image_filename + "_" + mode, "wb") as f:
-        if mode == "cbc":
-            f.write(header + iv + data)
-        else:
-            f.write(header + data)
+    image_filename = image_filename[: -len(".bmp")]
+    with open(f"encrypted_{image_filename}_{mode}.bmp", "wb") as f:
+        f.write(header + (iv if iv is not None else b"") + data)
 
 
-def decrypt_image(image_filename, mode, key, iv=None):
+def decrypt_image(image_filename: str, mode: str, key: bytes, iv=None):
+    if mode not in ["ecb", "cbc"]:
+        raise ValueError("Invalid mode")
     header, data = read_bmp_header(image_filename)
 
-    if iv is None:
-        iv = data[0:16]
+    if iv is None and mode == "cbc":
+        iv = data[:16]
         data = data[16:]
 
-    match mode:
-        case "ecb":
-            data = ecb_decrypt(key, data)
+    data = ecb_decrypt(key, data) if mode == "ecb" else cbc_decrypt(key, data, iv)
 
-        case "cbc":
-            data = cbc_decrypt(key, data, iv)
-
-    with open("decrypted_" + image_filename + "_" + mode, "wb") as f:
+    image_filename = image_filename[len("encrypted_") : -len(f"_{mode}.bmp")]
+    with open(f"decrypted_{image_filename}_{mode}.bmp", "wb") as f:
         f.write(header + data)
 
 
 def ecb_encrypt(key: bytes, plaintext: bytes) -> bytes:
     plaintext = pad_text(plaintext)
-    cipher = AES.new(key, AES.MODE_ECB)
-    block = []
-
-    while plaintext:
-        block.append(cipher.encrypt(plaintext[0:16]))
+    blocks = []
+    while len(plaintext) > 0:
+        # NOTE: not supposed to reuse AES objects (see docs)
+        cipher = AES.new(key, AES.MODE_ECB)
+        blocks.append(cipher.encrypt(plaintext[:16]))
         plaintext = plaintext[16:]
 
-    return b"".join(block)
+    return b"".join(blocks)
 
 
 def ecb_decrypt(key: bytes, ciphertext: bytes) -> bytes:
-    cipher = AES.new(key, AES.MODE_ECB)
-    block = []
-
-    while ciphertext:
-        block.append(cipher.decrypt(ciphertext[:16]))
+    blocks = []
+    while len(ciphertext) > 0:
+        cipher = AES.new(key, AES.MODE_ECB)
+        blocks.append(cipher.decrypt(ciphertext[:16]))
         ciphertext = ciphertext[16:]
 
-    return remove_padding(b"".join(block))
+    return remove_padding(b"".join(blocks))
 
 
 def cbc_encrypt(key: bytes, plaintext: bytes, iv: bytes) -> bytes:
     plaintext = pad_text(plaintext)
-    cipher = AES.new(key, AES.MODE_ECB)
-    block = []
-
-    iv_bits = int.from_bytes(iv, "big")
-    plaintext_bits = int.from_bytes(plaintext[:16], "big")
-
-    plaintext = plaintext[16:]
-    xor = iv_bits ^ plaintext_bits
-
-    while plaintext:
-        block.append(cipher.encrypt(xor.to_bytes(16, "big")))
-        xor = int.from_bytes(block[-1], "big") ^ int.from_bytes(plaintext[:16], "big")
+    blocks = []
+    while len(plaintext) > 0:
+        curr_block = plaintext[:16]
+        prev_block = iv if len(blocks) == 0 else blocks[-1]
+        xor = int.from_bytes(prev_block) ^ int.from_bytes(curr_block)
+        cipher = AES.new(key, AES.MODE_ECB)  # mode needs to be ECB
+        encrypted_block = cipher.encrypt(xor.to_bytes(length=16))
+        blocks.append(encrypted_block)
         plaintext = plaintext[16:]
 
-    return b"".join(block)
+    return b"".join(blocks)
 
 
 def cbc_decrypt(key: bytes, ciphertext: bytes, iv: bytes) -> bytes:
-    cipher = AES.new(key, AES.MODE_ECB)
-    block = []
+    cipher_blocks = []
+    blocks = []
+    while len(ciphertext) > 0:
+        curr_block = ciphertext[:16]
+        prev_block = iv if len(blocks) == 0 else cipher_blocks[-1]
+        cipher_blocks.append(curr_block)
+        cipher = AES.new(key, AES.MODE_ECB)  # mode needs to be ECB
+        curr_block = cipher.decrypt(curr_block)
+        xor = int.from_bytes(prev_block) ^ int.from_bytes(curr_block)
+        blocks.append(xor.to_bytes(length=16))
+        ciphertext = ciphertext[16:]
 
-    iv_bits = int.from_bytes(iv, "big")
-    ciphertext_bits = int.from_bytes(ciphertext[0:16], "big")
-
-    return b""
+    return remove_padding(b"".join(blocks))
 
 
-def generate_bytes(b: int) -> bytes:
-    return os.urandom(b)
+def random_bytes(len: int) -> bytes:
+    return os.urandom(len)
 
 
 def pad_text(plaintext: bytes) -> bytes:
@@ -113,7 +105,13 @@ def remove_padding(plaintext: bytes) -> bytes:
 
 
 def main() -> None:
-    return
+    key = b"1234567890123456"
+    mode = "ecb"
+    encrypt_image("cp-logo.bmp", mode, key)
+    decrypt_image(f"encrypted_cp-logo_{mode}.bmp", mode, key)
+    mode = "cbc"
+    encrypt_image("cp-logo.bmp", mode, key)
+    decrypt_image(f"encrypted_cp-logo_{mode}.bmp", mode, key)
 
 
 if __name__ == "__main__":
