@@ -1,0 +1,10 @@
+version: 3.1.2
+built on: Thu Aug  3 10:09:31 2023 UTC
+options: bn(64,64)
+compiler: gcc -m64 -Wall -O3 -DL_ENDIAN -DOPENSSL_PIC -DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN -D_MT -DOPENSSL_BUILDING_OPENSSL -DZLIB -DZLIB_SHARED -DNDEBUG -DOPENSSLBIN="\"/mingw64/bin\""
+CPUINFO: OPENSSL_ia32cap=0xfffaf38bffcbffff:0x184007a4239c27a9
+The 'numbers' are in 1000s of bytes per second processed.
+type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+aes-128-cbc    2184073.05k  2248533.50k  2086959.48k  2723537.13k  3310622.53k  4272422.91k
+aes-192-cbc    3103930.41k  3257397.19k  5757226.81k  1315817.68k  1005524.03k  1297099.10k
+aes-256-cbc     933527.42k  1007087.21k   973121.48k  1159222.61k  1144940.13k   975982.28k

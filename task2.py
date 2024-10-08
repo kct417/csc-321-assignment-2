@@ -1,6 +1,4 @@
-from pydoc import plain
 from task1 import *
-from Crypto.Cipher import AES
 
 
 def url_encode(text):
@@ -22,9 +20,7 @@ def submit(userdata, key, iv):
 
 def verify(ciphertext, key, iv):
     plaintext = cbc_decrypt(key, ciphertext, iv)
-    plaintext = plaintext.decode("utf-8")
-    plaintext = url_decode(plaintext)
-    return ";admin=true;" in plaintext
+    return b";admin=true;" in plaintext
 
 
 def tamper(ciphertext):
@@ -36,7 +32,7 @@ def tamper(ciphertext):
     return bytes(arr)
 
 
-if __name__ == "__main__":
+def main():
     key = random_bytes(len=16)
     iv = random_bytes(len=16)
     # uses "A" to pad so that the :admin<true: is fully in a block
@@ -52,3 +48,7 @@ if __name__ == "__main__":
     ciphertext = tamper(ciphertext)
     result = verify(ciphertext, key, iv)
     print("Tampered result of verify:", result)
+
+
+if __name__ == "__main__":
+    main()
