@@ -1,6 +1,4 @@
-from pydoc import plain
 from task1 import *
-from Crypto.Cipher import AES
 
 
 def url_encode(text):
