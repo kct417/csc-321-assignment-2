@@ -1,6 +1,7 @@
 import os
 from Crypto.Cipher import AES
 
+# NOTE: questions: need to handle 138? need to display images side by side?
 
 def read_bmp_header(filename):
     with open(filename, "rb") as f:
